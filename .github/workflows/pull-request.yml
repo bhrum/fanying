@@ -1,0 +1,32 @@
+name: Untrusted fork pull request
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: false
+      - name: Verify no privileged pull request context
+        shell: bash
+        run: |
+          test "${{ github.event_name }}" = pull_request
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+      - name: Run Tool Contract and MCP Apps conformance
+        run: node --test
+      - name: Scan workflow and source policy
+        shell: bash
+        run: |
+          ! grep -R -E 'pull_request_target|secrets\.|id-token:[[:space:]]*write|contents:[[:space:]]*write|wrangler deploy|gh release create|actions/attest' .github/workflows/pull-request.yml
+          ! grep -R -E 'postMessage|sessionId|sdk[-_ ]?v1' src
