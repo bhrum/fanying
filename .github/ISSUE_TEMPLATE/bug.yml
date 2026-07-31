@@ -1,0 +1,25 @@
+name: Bug report
+description: Report a reproducible Tool Contract or MCP Apps defect
+title: "[Bug]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe what happened without including secrets or private logs.
+    validations:
+      required: true
+  - type: input
+    id: source
+    attributes:
+      label: Source commit
+      description: Exact 40-character commit SHA.
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract and permission impact
+      description: List Tool Contract, permission, and artifact differences.
+    validations:
+      required: true
