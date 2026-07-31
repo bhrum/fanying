@@ -20,8 +20,10 @@ test('tool returns the declared ui resource', () => {
   });
 });
 
-test('invalid input uses the Tool Contract error code', () => {
-  assert.throws(() => translate({ text: '' }), (error) => error.code === 'invalid_input');
+test('invalid and whitespace-only input use the Tool Contract error code', () => {
+  for (const text of ['', '   ', '\n\t']) {
+    assert.throws(() => translate({ text }), (error) => error.code === 'invalid_input');
+  }
 });
 
 test('UI is a stable MCP App resource without a legacy bridge', async () => {
