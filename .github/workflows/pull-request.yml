@@ -13,15 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+          fetch-depth: 1
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verify no privileged pull request context
+      - name: Verify no privileged pull request context and bind source
         shell: bash
         run: |
           test "${{ github.event_name }}" = pull_request
           test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          echo "SOURCE_COMMIT=$(git rev-parse HEAD)"
+          echo "SOURCE_TREE=$(git rev-parse HEAD^{tree})"
       - name: Run Tool Contract and MCP Apps conformance
         run: node --test
       - name: Scan workflow and source policy
