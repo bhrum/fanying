@@ -31,7 +31,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: false
       - name: Validate exact protected source
         shell: bash
         run: |
