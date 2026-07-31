@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "pluginId": "org.bhrum.fanying",
+  "tools": [
+    {
+      "name": "fanying.translate",
+      "description": "Translate a non-empty text value without changing the MCP App identity.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text"],
+        "properties": {
+          "text": {"type": "string", "minLength": 1, "maxLength": 4000}
+        }
+      }
+    }
+  ],
+  "errorCodes": ["invalid_input"]
+}
