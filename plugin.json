@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 3,
+  "pluginId": "org.bhrum.fanying",
+  "publisher": "org.bhrum",
+  "version": "0.1.0",
+  "license": "MIT",
+  "mcpApps": {
+    "specification": "2026-01-26",
+    "extension": "io.modelcontextprotocol/ui",
+    "mimeType": "text/html;profile=mcp-app",
+    "resources": ["ui://fanying/main"]
+  },
+  "artifacts": ["common", "native-cli", "web-wasm"]
+}
