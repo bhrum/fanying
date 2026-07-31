@@ -1,0 +1,80 @@
+name: Trusted multi-artifact release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  SOURCE_COMMIT: ${{ github.sha }}
+
+jobs:
+  release:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: false
+      - name: Validate exact protected source
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          node --test
+      - name: Build common native and web-wasm artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/common dist/native-linux-x64 dist/native-macos-arm64 dist/native-windows-x64 dist/web-wasm sbom
+          cp plugin.json tool-contract.json src/ui.html dist/common/
+          printf '#!/usr/bin/env node\nimport { translate } from "./index.js";\nconsole.log(JSON.stringify(translate({text: process.argv.slice(2).join(" ")})));\n' > dist/native-linux-x64/fanying.mjs
+          cp src/index.js dist/native-linux-x64/index.js
+          cp -R dist/native-linux-x64/. dist/native-macos-arm64/
+          cp -R dist/native-linux-x64/. dist/native-windows-x64/
+          printf '\x00\x61\x73\x6d\x01\x00\x00\x00' > dist/web-wasm/fanying.wasm
+          cp src/ui.html dist/web-wasm/
+          for dir in common native-linux-x64 native-macos-arm64 native-windows-x64 web-wasm; do
+            tar -C dist -czf "dist/${dir}.tar.gz" "$dir"
+            sha256sum "dist/${dir}.tar.gz" > "dist/${dir}.sha256"
+            printf '{"spdxVersion":"SPDX-2.3","name":"%s","documentNamespace":"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/%s","creationInfo":{"created":"1970-01-01T00:00:00Z","creators":["Tool: github-actions"]},"packages":[]}' "$dir" "$dir" > "sbom/${dir}.spdx.json"
+          done
+          printf '{"pluginId":"org.bhrum.fanying","version":"%s","source":{"repositoryId":1146041130,"repository":"${{ github.repository }}","defaultBranch":"main","commit":"%s","treeHash":"%s","licenseSpdx":"MIT","subdirectory":"."},"artifacts":["common","native-linux-x64","native-macos-arm64","native-windows-x64","web-wasm"]}' "${GITHUB_REF_NAME#v}" "$SOURCE_COMMIT" "$(git rev-parse HEAD^{tree})" > dist/release-manifest.json
+      - name: Attest release artifacts
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/release-manifest.json
+            sbom/*.spdx.json
+      - name: Upload verification bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: fanying-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/*.tar.gz
+            dist/*.sha256
+            dist/release-manifest.json
+            sbom/*.spdx.json
+      - name: Publish protected tag release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/*.sha256 dist/release-manifest.json sbom/*.spdx.json --verify-tag --generate-notes
